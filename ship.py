@@ -20,6 +20,8 @@ class Ship:
         # define the moving flags
         self.moving_right = False
         self.moving_left = False
+        self.moving_up = False
+        self.moving_down = False
 
         # define setting attribute
         self.ai_setting = ai_setting
@@ -27,7 +29,7 @@ class Ship:
         # store the centerx value in decimal variable
         self.center = float(self.rect.centerx)
 
-    def update(self, screen_w):
+    def update(self, screen_w, scren_h):
         """update the center variable of the ship"""
         if self.moving_right and self.rect.centerx < screen_w:
             self.center += self.ai_setting.ship_speed_factor
