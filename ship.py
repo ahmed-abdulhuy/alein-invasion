@@ -1,16 +1,18 @@
 import pygame
+from pygame.sprite import Sprite
 
 
-class Ship:
+class Ship(Sprite):
     def __init__(self, screen, ai_setting):
         """Initialise the ship and set it's start position"""
+        super().__init__()
         self.screen = screen
 
         # load the ship image and set it's rect
-        self.img = pygame.image.load('imgs/ship_img.bmp')
+        self.image = pygame.image.load('imgs/ship_img.bmp')
 
         # make rectangle from the ship
-        self.rect = self.img.get_rect()
+        self.rect = self.image.get_rect()
         self.screen_rect = screen.get_rect()
 
         # make the ship start at the center buttom in the star
@@ -39,7 +41,11 @@ class Ship:
         # update the ship position
         self.rect.centerx = self.center
 
+    def center_ship(self):
+        """center thee ship in the screen"""
+        self.center = self.screen_rect.centerx
+
     def blitme(self):
        """Draw the ship at it's current location"""
 
-       self.screen.blit(self.img, self.rect)
+       self.screen.blit(self.image, self.rect)

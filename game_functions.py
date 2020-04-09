@@ -2,6 +2,7 @@ import sys
 import pygame
 from bullet import Bullet
 from alien import Alien
+from time import sleep
 
 
 def check_keydown_event(ship, bullets, event, ai_setting, screen):
@@ -38,7 +39,7 @@ def check_keyup_event(ship, event):
         ship.moving_left = False
 
 
-def check_event(ship, bullets, screen, ai_setting):
+def check_event(ship, bullets, aliens, screen, ai_setting, states, play_button, sb):
     """events handler"""
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -48,6 +49,38 @@ def check_event(ship, bullets, screen, ai_setting):
 
         elif event.type == pygame.KEYUP:
             check_keyup_event(ship, event)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            check_play_button(ai_setting, screen, states, sb, ship, aliens, bullets, play_button, mouse_x, mouse_y)
+
+
+def check_play_button(ai_setting, screen, states, sb, ship, aliens, bullets, play_button, mouse_x, mouse_y):
+    """start game if play is brassed"""
+    button_clicked = play_button.rect.collidepoint(mouse_x, mouse_y)
+    if button_clicked and not states.game_active:
+        # reset the game setting
+        ai_setting.initialize_dynamic_setting()
+
+        # Hide mouse
+        pygame.mouse.set_visible(False)
+
+        # Reset the game statistics
+        states.rest_states()
+        states.game_active = True
+
+        # reset score board
+        sb.prep_high_score()
+        sb.prep_score()
+        sb.prep_level()
+        sb.prep_ships()
+
+        # Empty the screen from aliens and bullets
+        bullets.empty()
+        aliens.empty()
+
+        # Creat fleet and center the ship
+        creat_fleet(aliens, ship, screen, ai_setting)
+        ship.center_ship()
 
 
 def check_fleet_edge(ai_setting, aliens):
@@ -65,7 +98,31 @@ def change_fleet_direction(ai_setting, aliens):
     ai_setting.fleet_direction *= -1
 
 
-def update_screen(screen, ai_setting, ship, bullets, aliens):
+def ship_hit(screen, ai_setting, states, sb, ship, bullets, aliens):
+    """respond to collision between ship and alien"""
+    if states.ship_left > 1:
+        # Decrement ships left
+        states.ship_left -= 1
+
+        # Update score board
+        sb.prep_ships()
+
+        # Empty the fleet and the bullets
+        bullets.empty()
+        aliens.empty()
+
+        # Creat new fleet and center the ship
+        creat_fleet(aliens, ship, screen, ai_setting)
+        ship.center_ship()
+
+        # Pause
+        sleep(0.5)
+    else:
+        states.game_active = False
+        pygame.mouse.set_visible(True)
+
+
+def update_screen(screen, ai_setting, states, sb, ship, bullets, aliens, play_button):
     """update the image and flip hte screen"""
     # Add the background color
     screen.fill(ai_setting.bg_color)
@@ -80,10 +137,17 @@ def update_screen(screen, ai_setting, ship, bullets, aliens):
     # Draw aliens
     aliens.draw(screen)
 
+    # Draw sore board
+    sb.show_score()
+
+    # Draw play button
+    if not states.game_active:
+        play_button.draw_button()
+
     pygame.display.flip()
 
 
-def update_bullet(ai_setting, screen, ship, bullets, aliens):
+def update_bullet(ai_setting, screen, states, sb, ship, bullets, aliens):
     """update and get rid of bullets"""
     # Update bullet position
     bullets.update()
@@ -93,6 +157,11 @@ def update_bullet(ai_setting, screen, ship, bullets, aliens):
         if bullet.rect.bottom <= 0:
             bullets.remove(bullet)
 
+    check_alien_bullet_collision(bullets, aliens, ship, screen, ai_setting, states, sb)
+
+
+def check_alien_bullet_collision(bullets, aliens, ship, screen, ai_setting, states, sb):
+    """Respond to alien bullet collision"""
     # Check if a bullet hits an alien
     # If so, get ride of them booth.
     collision = pygame.sprite.groupcollide(bullets, aliens, True, True)
@@ -101,13 +170,48 @@ def update_bullet(ai_setting, screen, ship, bullets, aliens):
     # and make another fleet
     if len(aliens) == 0:
         bullets.empty()
+        ai_setting.increase_speed()
+
+        # start a new level
+        states.level += 1
+        sb.prep_level()
         creat_fleet(aliens, ship, screen, ai_setting)
 
+    for aline in collision.values():
+        # Increase score when collision happened
+        if collision:
+            states.score += ai_setting.alien_points * len(aline)
+            sb.prep_score()
+            check_high_score(states, sb)
 
-def update_aliens(ai_setting, aliens):
+
+def check_alien_bottom(screen, ai_setting, states, sb, ship, aliens, bullets):
+    """check if an alien reach the bottom of the screen"""
+    screen_rect = screen.get_rect()
+    for alien in aliens:
+        if alien.rect.bottom >= screen_rect.bottom:
+            # Treat this the same way as the ship had been heated
+            ship_hit(screen, ai_setting, states, sb, ship, bullets, aliens)
+            break
+
+
+def check_high_score(states, sb):
+    """Check if ther is a new high score"""
+    if states.high_score < states.score:
+        states.high_score = states.score
+        sb.prep_high_score()
+
+
+def update_aliens(screen, ai_setting, states, sb,  aliens, ship, bullets):
     """Check if the fleet hits an edge, and then update the position of the entire fleet"""
     check_fleet_edge(ai_setting, aliens)
     aliens.update()
+
+    # Check aline ship collision
+    if pygame.sprite.spritecollideany(ship, aliens):
+        ship_hit(screen, ai_setting, states, sb, ship, bullets, aliens)
+    # Check if an alien hits hte screen
+    check_alien_bottom(screen, ai_setting, states, sb, ship, aliens, bullets)
 
 
 def get_number_aliens_x(ai_setting, alien_width):

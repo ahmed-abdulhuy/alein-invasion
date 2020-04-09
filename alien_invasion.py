@@ -1,9 +1,11 @@
-import sys
 import pygame
 import game_functions as gf
 from settings.Settings import Setting
 from ship import Ship
 from pygame.sprite import Group
+from game_states import GameStates
+from button import Button
+from score_board import ScoreBoard
 
 
 def run_game():
@@ -17,14 +19,26 @@ def run_game():
     bullets = Group()
     aliens = Group()
 
+    # Creat game state
+    states = GameStates(ai_setting)
+
+    # Creat a button instance
+    play_button = Button(ai_setting, screen, 'Play')
+
+    # Creat score board
+    sb = ScoreBoard(ai_setting, screen, states)
+
     # Creat aliens fleet
     gf.creat_fleet(aliens, ship, screen, ai_setting)
+
     while True:
-        gf.check_event(ship, bullets, screen, ai_setting)
-        ship.update(ai_setting.width, ai_setting.height)
-        gf.update_bullet(ai_setting, screen, ship, bullets, aliens)
-        gf.update_aliens(ai_setting, aliens)
-        gf.update_screen(screen, ai_setting, ship, bullets, aliens)
+        gf.check_event(ship, bullets, aliens, screen, ai_setting, states, play_button, sb)
+
+        if states.game_active:
+            ship.update(ai_setting.width, ai_setting.height)
+            gf.update_bullet(ai_setting, screen, states, sb, ship, bullets, aliens)
+            gf.update_aliens(screen, ai_setting, states, sb, aliens, ship, bullets)
+        gf.update_screen(screen, ai_setting, states, sb, ship, bullets, aliens, play_button)
         pygame.display.flip()
 
 
